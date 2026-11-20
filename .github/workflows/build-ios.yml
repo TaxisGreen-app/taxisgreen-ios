@@ -13,6 +13,11 @@ jobs:
       - name: Récupération du code
         uses: actions/checkout@v4
 
+      - name: Sélection de la version stable de Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.2.app || sudo xcode-select -s /Applications/Xcode_16.1.app || sudo xcode-select -s /Applications/Xcode_16.app
+          xcodebuild -version
+
       - name: Configuration de Node.js 22
         uses: actions/setup-node@v4
         with:
