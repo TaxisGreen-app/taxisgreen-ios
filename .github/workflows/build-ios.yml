@@ -7,18 +7,16 @@ on:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26
 
     steps:
       - name: Récupération du code
         uses: actions/checkout@v4
 
-      - name: Sélection de la version stable officielle de Xcode
-        run: |
-          sudo xcode-select -s /Applications/Xcode_16.2.app || sudo xcode-select -s /Applications/Xcode_16.1.app || sudo xcode-select -s /Applications/Xcode_16.app
-          xcodebuild -version
+      - name: Vérification de Xcode 26
+        run: xcodebuild -version
 
-      - name: Configuration de Node.js 22
+      - name: Configuration de Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -92,14 +90,14 @@ jobs:
                 in_house: false
               )
 
-              # Nettoyage automatique des anciens certificats de distribution orphelins
+              # Nettoyage automatique des anciens certificats de distribution si nécessaire
               begin
                 Spaceship::ConnectAPI::Certificate.all(filter: { certificateType: "DISTRIBUTION" }).each do |c|
-                  UI.message("Suppression de l'ancien certificat: #{c.id}")
+                  UI.message("Nettoyage du certificat: #{c.id}")
                   c.delete!
                 end
               rescue => e
-                UI.important("Note nettoyage certificats: #{e}")
+                UI.important("Note certificats: #{e}")
               end
 
               kc_name = "ci_keychain"
