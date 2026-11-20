@@ -103,7 +103,6 @@ jobs:
 
               get_certificates(
                 api_key: api_key,
-                type: "apple_distribution",
                 generate_apple_certs: true,
                 keychain_name: "ci_keychain",
                 keychain_password: "ci_temp_password_123"
@@ -111,8 +110,7 @@ jobs:
 
               get_provisioning_profile(
                 api_key: api_key,
-                app_identifier: "com.taxisgreen.app",
-                type: "app-store",
+                app_identifier: "com.taxisgreen.app",      
                 force: true
               )
 
