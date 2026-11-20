@@ -102,10 +102,7 @@ jobs:
               )
 
               get_certificates(
-                api_key: api_key,
-                generate_apple_certs: true,
-                keychain_name: "ci_keychain",
-                keychain_password: "ci_temp_password_123"
+                api_key: api_key
               )
 
               get_provisioning_profile(
