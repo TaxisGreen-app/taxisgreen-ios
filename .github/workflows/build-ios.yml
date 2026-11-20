@@ -85,7 +85,6 @@ jobs:
                 in_house: false
               )
 
-              # Création du trousseau temporaire pour CI
               kc_name = "ci_keychain"
               kc_pass = "taxisgreen_ci_pass"
               create_keychain(
@@ -97,7 +96,6 @@ jobs:
                 lock_when_sleeps: false
               )
 
-              # Détection automatique du fichier trousseau réel (avec ou sans -db)
               kc_path = Dir.glob(File.expand_path("~/Library/Keychains/#{kc_name}*")).first
 
               get_certificates(
@@ -118,6 +116,14 @@ jobs:
                 teamid: ENV["APPLE_TEAM_ID"]
               )
 
+              update_project_provisioning(
+                xcodeproj: "App.xcodeproj",
+                profile: "./embedded.mobileprovision",
+                build_configuration: "Release"
+              )
+
+              profile_uuid = lane_context[SharedValues::SIGH_UDID]
+
               build_app(
                 project: "App.xcodeproj",
                 scheme: "App",
@@ -128,10 +134,10 @@ jobs:
                 export_options: {
                   signingStyle: "manual",
                   provisioningProfiles: {
-                    "com.taxisgreen.app" => "embedded.mobileprovision"
+                    "com.taxisgreen.app" => profile_uuid
                   }
                 },
-                xcargs: "CODE_SIGN_STYLE=Manual"
+                xcargs: "CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER='#{profile_uuid}' DEVELOPMENT_TEAM='#{ENV[\"APPLE_TEAM_ID\"]}'"
               )
 
               upload_to_app_store(
