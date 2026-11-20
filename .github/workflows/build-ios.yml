@@ -84,8 +84,6 @@ jobs:
 
           platform :ios do
             lane :release do
-              setup_ci(force: true)
-
               api_key = app_store_connect_api_key(
                 key_id: ENV["APPSTORE_KEY_ID"],
                 issuer_id: ENV["APPSTORE_ISSUER_ID"],
@@ -99,7 +97,7 @@ jobs:
                 generate_apple_certs: true
               )
 
-              sh("security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k '' ~/Library/Keychains/fastlane_tmp_keychain-db || true")
+              sh("security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 'buildpass123' $RUNNER_TEMP/build.keychain-db || true")
 
               get_provisioning_profile(
                 api_key: api_key,
@@ -161,6 +159,13 @@ jobs:
           APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          security create-keychain -p "buildpass123" "$KEYCHAIN_PATH" || true
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "buildpass123" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
           bundle exec fastlane release || fastlane release
 
       - name: 8. Sauvegarde du fichier IPA
