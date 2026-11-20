@@ -91,26 +91,21 @@ jobs:
                 is_key_content_base64: false,
                 in_house: false
               )
-              
+
               get_certificates(
-                api_key: api_key
+                api_key: api_key,
+                generate_apple_certs: true
               )
 
               get_provisioning_profile(
                 api_key: api_key,
-                app_identifier: "com.taxisgreen.app",      
+                app_identifier: "com.taxisgreen.app",
                 force: true
               )
 
               update_project_team(
                 path: "ios/App/App.xcodeproj",
                 teamid: ENV["APPLE_TEAM_ID"]
-              )
-
-              disable_automatic_code_signing(
-                path: "ios/App/App.xcodeproj",
-                team_id: ENV["APPLE_TEAM_ID"],
-                targets: ["App"]
               )
 
               update_code_signing_settings(
@@ -144,8 +139,6 @@ jobs:
                 output_name: "TaxisGreen.ipa"
               )
 
-              )
-
               upload_to_app_store(
                 api_key: api_key,
                 ipa: "./build/TaxisGreen.ipa",
@@ -170,6 +163,6 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: TaxisGreen-iOS
-          path: build/*.ipa
+          name: TaxisGreen-iOS-IPA
+          path: build/TaxisGreen.ipa
           if-no-files-found: ignore
