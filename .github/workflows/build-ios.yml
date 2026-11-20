@@ -13,7 +13,7 @@ jobs:
       - name: Récupération du code
         uses: actions/checkout@v4
 
-      - name: Sélection de la version stable de Xcode
+      - name: Sélection de la version stable officielle de Xcode
         run: |
           sudo xcode-select -s /Applications/Xcode_16.2.app || sudo xcode-select -s /Applications/Xcode_16.1.app || sudo xcode-select -s /Applications/Xcode_16.app
           xcodebuild -version
@@ -91,6 +91,16 @@ jobs:
                 duration: 1200,
                 in_house: false
               )
+
+              # Nettoyage automatique des anciens certificats de distribution orphelins
+              begin
+                Spaceship::ConnectAPI::Certificate.all(filter: { certificateType: "DISTRIBUTION" }).each do |c|
+                  UI.message("Suppression de l'ancien certificat: #{c.id}")
+                  c.delete!
+                end
+              rescue => e
+                UI.important("Note nettoyage certificats: #{e}")
+              end
 
               kc_name = "ci_keychain"
               kc_pass = "taxisgreen_ci_pass"
