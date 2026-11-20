@@ -91,16 +91,7 @@ jobs:
                 is_key_content_base64: false,
                 in_house: false
               )
-
-              create_keychain(
-                name: "ci_keychain",
-                password: "ci_temp_password_123",
-                default_keychain: true,
-                unlock: true,
-                timeout: 3600,
-                lock_when_sleeps: false
-              )
-
+              
               get_certificates(
                 api_key: api_key
               )
