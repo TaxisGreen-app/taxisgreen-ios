@@ -113,11 +113,18 @@ jobs:
                 targets: ["App"]
               )
 
+              update_code_signing_settings(
+                use_automatic_signing: false,
+                path: "ios/App/App.xcodeproj",
+                code_sign_identity: "Apple Distribution"
+              )
+
               update_project_provisioning(
                 xcodeproj: "ios/App/App.xcodeproj",
                 profile: lane_context[SharedValues::SIGH_PROFILE_PATH],
                 target_filter: "App",
-                build_configuration: "Release"
+                build_configuration: "Release",
+                code_signing_identity: "Apple Distribution"
               )
 
               build_app(
@@ -132,8 +139,11 @@ jobs:
                     "com.taxisgreen.app" => lane_context[SharedValues::SIGH_NAME]
                   }
                 },
+                xcargs: "CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution'",
                 output_directory: "./build",
                 output_name: "TaxisGreen.ipa"
+              )
+
               )
 
               upload_to_app_store(
