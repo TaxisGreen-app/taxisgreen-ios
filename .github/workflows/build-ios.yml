@@ -1,153 +1,138 @@
-name: Construction et envoi de l'application iOS
+name: Build iOS & App Store Connect
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   build:
-    name: Build iOS & App Store Connect
     runs-on: macos-15
 
     steps:
-      - name: 1. Récupération du code
+      - name: Récupération du code
         uses: actions/checkout@v4
 
-      - name: 2. Configuration de Node.js
+      - name: Configuration de Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: 3. Initialisation du projet iOS (Capacitor)
+      - name: Installation des dépendances Capacitor
         run: |
           npm init -y
-          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/ios@latest
-
-          # Dossier web avec redirection directe vers app.taxisgreen.com
+          npm install @capacitor/core @capacitor/cli @capacitor/ios
+          npx cap init "TaxisGreen" "com.taxisgreen.app" --web-dir "."
           mkdir -p www
           cat << 'EOF' > www/index.html
           <!DOCTYPE html>
           <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>TaxisGreen</title>
-          </head>
-          <body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;color:#fff;font-family:sans-serif;">
-            <p>Chargement de TaxisGreen...</p>
-            <script>window.location.href="https://app.taxisgreen.com";</script>
-          </body>
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+              <title>TaxisGreen</title>
+              <script>
+                window.location.replace("https://app.taxisgreen.com");
+              </script>
+            </head>
+            <body style="margin: 0; background-color: #0b1510;"></body>
           </html>
           EOF
-
-          # Configuration de l'application iOS
-          cat << 'EOF' > capacitor.config.json
-          {
-            "appId": "com.taxisgreen.app",
-            "appName": "TaxisGreen",
-            "webDir": "www",
-            "server": {
-              "url": "https://app.taxisgreen.com",
-              "cleartext": false,
-              "allowNavigation": ["app.taxisgreen.com", "*.taxisgreen.com"]
-            },
-            "ios": {
-              "contentInset": "always"
-            }
-          }
-          EOF
-
-          # Création du projet natif iOS
           npx cap add ios
 
-      - name: 4. Téléchargement et calibrage de l'icône de l'app
+      - name: Configuration de l'icône et des autorisations iOS
         run: |
-          curl -s -L "https://app.taxisgreen.com/icon-512.png" -o icon-512.png
-          # Générer l'icône 1024x1024 exigée par Apple (sans transparence)
-          sips -z 1024 1024 icon-512.png --out ios/App/App/Assets.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png
+          curl -s -L -o app-icon.png https://app.taxisgreen.com/favicon-512.png
+          python3 -c "
+          import os, urllib.request
+          from PIL import Image
+          try:
+              im = Image.open('app-icon.png').convert('RGBA')
+              sizes = [20, 29, 40, 58, 60, 76, 80, 87, 120, 152, 167, 180, 1024]
+              icon_dir = 'ios/App/App/Assets.xcassets/AppIcon.appiconset'
+              os.makedirs(icon_dir, exist_ok=True)
+              for s in sizes:
+                  resized = im.resize((s, s), Image.Resampling.LANCZOS)
+                  resized.save(f'{icon_dir}/icon_{s}.png')
+          except Exception as e:
+              print('Icon resize note:', e)
+          " || true
 
-      - name: 5. Configuration des autorisations iOS (GPS, Caméra, Chiffrement)
-        run: |
           PLIST="ios/App/App/Info.plist"
-          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" || /usr/libexec/PlistBuddy -c "Set :ITSAppUsesNonExemptEncryption false" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string 'TaxisGreen a besoin de votre position pour vous localiser lors de votre commande de taxi ou prise en charge.'" "$PLIST" || true
-          /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string 'TaxisGreen utilise votre position pour assurer le suivi en direct de votre course.'" "$PLIST" || true
-          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'TaxisGreen utilise l appareil photo pour ajouter des justificatifs.'" "$PLIST" || true
-          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'TaxisGreen accède à vos photos pour sélectionner un justificatif.'" "$PLIST" || true
+          /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string 'TaxisGreen utilise votre géolocalisation pour proposer des courses et faciliter la prise en charge.'" "$PLIST" || true
+          /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string 'TaxisGreen utilise votre géolocalisation en arrière-plan pour le suivi des courses.'" "$PLIST" || true
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'TaxisGreen nécessite l accès à l appareil photo pour photographier les documents professionnels.'" "$PLIST" || true
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'TaxisGreen nécessite l accès à la galerie pour importer vos documents professionnels.'" "$PLIST" || true
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST" || true
 
-      - name: 6. Préparation du script Fastlane
+      - name: Synchronisation Capacitor
+        run: npx cap sync ios
+
+      - name: Configuration de Fastlane
         run: |
-          mkdir -p fastlane
-          cat << 'EOF' > fastlane/Fastfile
+          mkdir -p ios/App/fastlane
+          cat << 'EOF' > ios/App/fastlane/Fastfile
           default_platform(:ios)
 
           platform :ios do
+            desc "Signature et envoi vers App Store Connect"
             lane :release do
               api_key = app_store_connect_api_key(
                 key_id: ENV["APPSTORE_KEY_ID"],
                 issuer_id: ENV["APPSTORE_ISSUER_ID"],
                 key_content: ENV["APPSTORE_PRIVATE_KEY"],
-                is_key_content_base64: false,
+                duration: 1200,
                 in_house: false
               )
 
+              # Création du trousseau temporaire pour CI
+              kc_name = "ci_keychain"
+              kc_pass = "taxisgreen_ci_pass"
               create_keychain(
-                name: "ci_keychain",
-                password: "taxisgreen_ci_pass",
+                name: kc_name,
+                password: kc_pass,
                 default_keychain: true,
                 unlock: true,
                 timeout: 3600,
                 lock_when_sleeps: false
               )
 
+              # Chemin du trousseau avec l'extension -db créée par macOS
+              kc_path = File.expand_path("~/Library/Keychains/#{kc_name}-db")
+              kc_path = File.expand_path("~/Library/Keychains/#{kc_name}") unless File.exist?(kc_path)
+
               get_certificates(
                 api_key: api_key,
                 generate_apple_certs: true,
-                keychain_path: lane_context[SharedValues::KEYCHAIN_PATH],
-                keychain_password: "taxisgreen_ci_pass"
+                keychain_path: kc_path,
+                keychain_password: kc_pass
               )
 
               get_provisioning_profile(
                 api_key: api_key,
                 app_identifier: "com.taxisgreen.app",
-                force: true
+                filename: "embedded.mobileprovision"
               )
 
               update_project_team(
-                path: "ios/App/App.xcodeproj",
+                path: "App.xcodeproj",
                 teamid: ENV["APPLE_TEAM_ID"]
               )
 
-              update_code_signing_settings(
-                use_automatic_signing: false,
-                path: "ios/App/App.xcodeproj",
-                code_sign_identity: "Apple Distribution"
-              )
-
-              update_project_provisioning(
-                xcodeproj: "ios/App/App.xcodeproj",
-                profile: lane_context[SharedValues::SIGH_PROFILE_PATH],
-                target_filter: "App",
-                build_configuration: "Release",
-                code_signing_identity: "Apple Distribution"
-              )
-
               build_app(
-                project: "ios/App/App.xcodeproj",
+                project: "App.xcodeproj",
                 scheme: "App",
-                configuration: "Release",
+                clean: true,
+                output_directory: "./build",
+                output_name: "TaxisGreen.ipa",
                 export_method: "app-store",
                 export_options: {
                   signingStyle: "manual",
-                  teamID: ENV["APPLE_TEAM_ID"],
                   provisioningProfiles: {
-                    "com.taxisgreen.app" => lane_context[SharedValues::SIGH_NAME]
+                    "com.taxisgreen.app" => "embedded.mobileprovision"
                   }
                 },
-                xcargs: "CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution'",
-                output_directory: "./build",
-                output_name: "TaxisGreen.ipa"
+                xcargs: "CODE_SIGN_STYLE=Manual"
               )
 
               upload_to_app_store(
@@ -155,25 +140,26 @@ jobs:
                 ipa: "./build/TaxisGreen.ipa",
                 skip_screenshots: true,
                 skip_metadata: true,
-                skip_waiting_for_build_processing: true
+                force: true
               )
             end
           end
           EOF
 
-      - name: 7. Signature et envoi vers App Store Connect
+      - name: Signature et envoi vers App Store Connect
         env:
           APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          cd ios/App
           bundle exec fastlane release || fastlane release
 
-      - name: 8. Sauvegarde du fichier IPA
+      - name: Sauvegarde du fichier IPA
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: TaxisGreen-iOS-IPA
-          path: build/TaxisGreen.ipa
+          path: ios/App/build/TaxisGreen.ipa
           if-no-files-found: ignore
