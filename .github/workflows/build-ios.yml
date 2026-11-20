@@ -92,12 +92,21 @@ jobs:
                 in_house: false
               )
 
-              get_certificates(
-                api_key: api_key,
-                generate_apple_certs: true
+              create_keychain(
+                name: "ci_keychain",
+                password: "taxisgreen_ci_pass",
+                default_keychain: true,
+                unlock: true,
+                timeout: 3600,
+                lock_when_sleeps: false
               )
 
-              sh("security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k 'buildpass123' $RUNNER_TEMP/build.keychain-db || true")
+              get_certificates(
+                api_key: api_key,
+                generate_apple_certs: true,
+                keychain_path: lane_context[SharedValues::KEYCHAIN_PATH],
+                keychain_password: "taxisgreen_ci_pass"
+              )
 
               get_provisioning_profile(
                 api_key: api_key,
@@ -159,13 +168,6 @@ jobs:
           APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
-          security create-keychain -p "buildpass123" "$KEYCHAIN_PATH" || true
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "buildpass123" "$KEYCHAIN_PATH"
-          security default-keychain -s "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
-
           bundle exec fastlane release || fastlane release
 
       - name: 8. Sauvegarde du fichier IPA
