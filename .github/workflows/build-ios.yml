@@ -20,9 +20,6 @@ jobs:
 
       - name: Installation des dépendances Capacitor
         run: |
-          npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/ios
-          npx cap init "TaxisGreen" "com.taxisgreen.app" --web-dir "."
           mkdir -p www
           cat << 'EOF' > www/index.html
           <!DOCTYPE html>
@@ -38,6 +35,9 @@ jobs:
             <body style="margin: 0; background-color: #0b1510;"></body>
           </html>
           EOF
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/ios
+          npx cap init "TaxisGreen" "com.taxisgreen.app" --web-dir "www"
           npx cap add ios
 
       - name: Configuration de l'icône et des autorisations iOS
@@ -97,9 +97,8 @@ jobs:
                 lock_when_sleeps: false
               )
 
-              # Chemin du trousseau avec l'extension -db créée par macOS
-              kc_path = File.expand_path("~/Library/Keychains/#{kc_name}-db")
-              kc_path = File.expand_path("~/Library/Keychains/#{kc_name}") unless File.exist?(kc_path)
+              # Détection automatique du fichier trousseau réel (avec ou sans -db)
+              kc_path = Dir.glob(File.expand_path("~/Library/Keychains/#{kc_name}*")).first
 
               get_certificates(
                 api_key: api_key,
