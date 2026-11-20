@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     name: Build iOS & App Store Connect
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: 1. Récupération du code
